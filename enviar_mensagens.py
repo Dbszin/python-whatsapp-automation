@@ -1,23 +1,19 @@
 import pandas as pd
 import pywhatkit as kit
 import time
-import keyboard
 import pyautogui
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, scrolledtext
 from threading import Thread
+import os
 
-# Configurações de segurança do PyAutoGUI
+# Configurações globais
 pyautogui.FAILSAFE = True
 pyautogui.PAUSE = 1
-
-# Variáveis globais
 dados = None
-contador = 0
 progresso = 0
-max_mensagens = 500
-paused = False
 running = False
+imagem_path = None
 
 # Função para carregar o arquivo Excel
 def carregar_arquivo():
@@ -25,82 +21,98 @@ def carregar_arquivo():
     arquivo = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
     if arquivo:
         try:
-            dados = pd.read_excel(arquivo, header=0)  # Lendo a primeira linha como cabeçalho
-            
-            # Remover espaços extras e padronizar nomes das colunas
+            dados = pd.read_excel(arquivo, header=0)
             dados.columns = dados.columns.str.strip().str.lower()
             
-            if "telefone" not in dados.columns or "nome" not in dados.columns:
-                messagebox.showerror("Erro", "O arquivo Excel deve conter as colunas 'telefone' e 'nome'.")
+            # Identificar colunas dinamicamente
+            coluna_nome = encontrar_coluna(dados, ['nome', 'name'])
+            coluna_telefone = encontrar_coluna(dados, ['telefone', 'phone', 'celular', 'número'])
+            
+            if coluna_nome is None or coluna_telefone is None:
+                messagebox.showerror("Erro", "O arquivo deve ter colunas 'nome' e 'telefone'.")
                 return
 
-            dados = dados.dropna(subset=["telefone", "nome"])  # Remover linhas sem telefone ou nome
-            progresso = 0
+            dados.rename(columns={coluna_nome: 'nome', coluna_telefone: 'telefone'}, inplace=True)
+            dados = dados.dropna(subset=["telefone", "nome"])
+
+            # Recuperar progresso salvo
+            if os.path.exists("progresso.txt"):
+                with open("progresso.txt", "r") as file:
+                    progresso = int(file.read().strip())
+            else:
+                progresso = 0
+
             messagebox.showinfo("Sucesso", "Arquivo carregado com sucesso!")
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao abrir o arquivo Excel: {e}")
+            messagebox.showerror("Erro", f"Erro ao abrir o arquivo: {e}")
+
+# Função para encontrar colunas dinamicamente
+def encontrar_coluna(df, palavras_chave):
+    for coluna in df.columns:
+        if any(palavra.lower() in coluna.lower() for palavra in palavras_chave):
+            return coluna
+    return None
 
 # Função para enviar mensagens
 def enviar_mensagens():
-    global contador, progresso, running
+    global progresso, running, imagem_path
     running = True
+    mensagem_personalizada = txt_mensagem.get("1.0", tk.END).strip()
+
     for index, row in dados.iloc[progresso:].iterrows():
-        if not running:  # Verifica se o processo deve ser interrompido
+        if not running:
             break
 
-        numero = str(row["telefone"]).strip()
-        numero = numero.replace("(", "").replace(")", "").replace("-", "").replace(" ", "")
-        
+        numero = str(row["telefone"]).strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
         if not numero.startswith("+55"):
             numero = f"+55{numero}"
 
-        nome_completo = str(row["nome"]).strip()
-        primeiro_nome = nome_completo.split()[0] if nome_completo else ""
+        primeiro_nome = str(row["nome"]).strip().split()[0]
 
-        mensagem = f" Olá {primeiro_nome}, temos uma promoção especial para você:\n💥 Plano Dopamina Edos Fit 💥\n⚡ Por apenas R$89,90/mês! ⚡\n\n🎯 Tudo que você precisa para transformar seu estilo de vida:\n✅ Musculação, Funcional, Fitdance, Big ass\n✅ App de treino personalizado na palma da mão\n✅ Cadeira de massagem relaxante incluída\n\n🚨 Vagas limitadas!\n🔥 Exclusivo para novos alunos e upgrades de plano!\n\n⏳ Não perca tempo! A sua mudança começa agora! Aproveite!"
+        mensagem = mensagem_personalizada.replace("{nome}", primeiro_nome)
 
         try:
-            print(f"\nEnviando mensagem para {numero}...")
+            print(f"Enviando mensagem para {numero}...")
 
-            kit.sendwhatmsg_instantly(numero, mensagem, wait_time=15)
+            if imagem_path and os.path.exists(imagem_path):
+                kit.sendwhats_image(numero, imagem_path, mensagem, wait_time=20)
+            else:
+                kit.sendwhatmsg_instantly(numero, mensagem, wait_time=10)
+
             enviar_mensagem_automaticamente()
 
-            contador += 1
-
+            progresso = index + 1
             with open("progresso.txt", "w") as file:
-                file.write(str(index+1))
+                file.write(str(progresso))
 
         except Exception as e:
-            print(f"Erro ao enviar mensagem para {numero}: {e}")
+            print(f"Erro ao enviar para {numero}: {e}")
             continue
 
     running = False
-    messagebox.showinfo("Finalizado", "Processo finalizado.")
+    messagebox.showinfo("Finalizado", "Mensagens enviadas.")
 
-def finalizar():
-    global running
-    running = False
-    print("Processo finalizado pelo usuário.")
-
-
-# Função para automatizar o envio e fechar a guia
+# Função para automatizar o envio e fechar guia
 def enviar_mensagem_automaticamente():
-    time.sleep(10)
+    time.sleep(8) 
     pyautogui.press('enter')
-    time.sleep(7)
+    time.sleep(6)
     pyautogui.hotkey('ctrl', 'w')
     time.sleep(2)
 
-# Funções para controlar o sistema
+# Função para carregar imagem
+def carregar_imagem():
+    global imagem_path
+    imagem_path = filedialog.askopenfilename(filetypes=[("Imagens", "*.png;*.jpg;*.jpeg")])
+    if imagem_path:
+        lbl_imagem.config(text=f"Imagem: {os.path.basename(imagem_path)}")
+
+# Controles do sistema
 def iniciar():
     if dados is None:
-        messagebox.showwarning("Aviso", "Por favor, carregue um arquivo Excel primeiro.")
+        messagebox.showwarning("Aviso", "Carregue um arquivo primeiro.")
         return
     Thread(target=enviar_mensagens).start()
-
-def pausar():
-    global paused
-    paused = not paused
 
 def finalizar():
     global running
@@ -108,21 +120,31 @@ def finalizar():
 
 # Interface gráfica
 root = tk.Tk()
-root.title("Envio de Mensagens Automático")
+root.title("Envio Automático")
+root.geometry("600x400")
 
 frame = tk.Frame(root)
 frame.pack(pady=20)
 
-btn_carregar = tk.Button(frame, text="Carregar Arquivo Excel", command=carregar_arquivo)
+btn_carregar = tk.Button(frame, text="Carregar Excel", command=carregar_arquivo)
 btn_carregar.pack(side=tk.LEFT, padx=10)
+
+btn_carregar_imagem = tk.Button(frame, text="Carregar Imagem", command=carregar_imagem)
+btn_carregar_imagem.pack(side=tk.LEFT, padx=10)
 
 btn_iniciar = tk.Button(frame, text="Iniciar", command=iniciar)
 btn_iniciar.pack(side=tk.LEFT, padx=10)
 
-btn_pausar = tk.Button(frame, text="Pausar", command=pausar)
-btn_pausar.pack(side=tk.LEFT, padx=10)
-
 btn_finalizar = tk.Button(frame, text="Finalizar", command=finalizar)
 btn_finalizar.pack(side=tk.LEFT, padx=10)
+
+lbl_mensagem = tk.Label(root, text="Mensagem (use {nome} para personalizar):")
+lbl_mensagem.pack(pady=10)
+
+txt_mensagem = scrolledtext.ScrolledText(root, width=70, height=5)
+txt_mensagem.pack(pady=10)
+
+lbl_imagem = tk.Label(root, text="Nenhuma imagem carregada.")
+lbl_imagem.pack(pady=10)
 
 root.mainloop()
