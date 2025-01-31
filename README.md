@@ -1,113 +1,114 @@
-
+# **Envio Automático de Mensagens no WhatsApp**
 
 ## **Descrição do Projeto**
-Este script automatiza o envio de mensagens personalizadas para contatos via WhatsApp Web. Ele utiliza um arquivo Excel contendo informações de contato (números de telefone e nomes) e realiza o envio de mensagens em massa, garantindo a continuidade do processo mesmo após interrupções, utilizando um sistema de progresso salvo.
+
+Este projeto automatiza o envio de mensagens personalizadas para contatos via **WhatsApp Web**. Ele utiliza um arquivo **Excel** contendo informações de contato (números de telefone e nomes) e permite configurar o envio de mensagens de forma intuitiva por meio de uma interface gráfica.
+
+Além disso, o sistema permite o envio de imagens e armazena o progresso para evitar mensagens duplicadas, tornando a automação mais eficiente e confiável.
 
 ---
 
 ## **Funcionalidades**
-- Lê um arquivo Excel com os dados de contatos.
+
+- Lê um arquivo **Excel** com os dados dos contatos.
 - Envia mensagens no **WhatsApp Web** utilizando a biblioteca `pywhatkit`.
-- Salva o progresso em um arquivo `progresso.txt` para retomar o envio em execuções futuras.
-- Possui limite configurável para o número de mensagens enviadas por execução.
-- Permite interromper o processo pressionando a tecla `q`.
+- Possui interface gráfica para facilitar o carregamento de arquivos e a configuração do envio.
+- Suporte para envio de imagens junto com a mensagem.
+- Registra o progresso para evitar mensagens duplicadas.
+- Permite interromper o processo a qualquer momento.
+- Ajuste dinâmico do tempo de envio para evitar bloqueios pelo WhatsApp.
+- Exibição de status detalhado durante o processo de envio.
 
 ---
 
 ## **Requisitos do Sistema**
+
 ### **Linguagem e Bibliotecas**
+
 - **Python 3.8+**
-- Bibliotecas:
-  - `pandas`
-  - `pywhatkit`
-  - `pyautogui`
-  - `keyboard`
+- Bibliotecas necessárias:
+  ```bash
+  pip install pandas pywhatkit pyautogui tk openpyxl
+  ```
 
 ### **Configurações do Sistema**
-- É necessário que o **WhatsApp Web** esteja configurado no navegador.
-- O arquivo Excel deve conter pelo menos duas colunas: `nome` e `telefone`.
+
+- O **WhatsApp Web** deve estar logado no navegador padrão.
+- O arquivo Excel deve conter pelo menos duas colunas: `Nome` e `Telefone`.
 
 ---
 
-## **Instalação**
-1. **Clone o repositório ou copie o script.**
-2. **Instale as dependências do Python:**
+## **Instalação e Execução**
+
+### **Passo 1: Baixar e Configurar o Projeto**
+
+1. **Clone o repositório ou copie os arquivos do projeto:**
    ```bash
-   pip install pandas pywhatkit pyautogui keyboard
+   git clone https://github.com/seu-repositorio.git
+   cd seu-repositorio
    ```
+2. **Instale as dependências conforme listado acima.**
 
-3. **Prepare o arquivo Excel:**
-   - Certifique-se de que ele contém as colunas `nome` e `telefone`.
-   - Salve o arquivo com o nome `arquivo excell` no mesmo diretório do script.
+### **Passo 2: Como Usar**
 
----
-
-## **Como Usar**
-1. **Certifique-se de que o arquivo Excel está configurado corretamente.**
-2. **Execute o script:**
+1. **Execute o script principal do projeto:**
    ```bash
-   python script.py
+   python main.py
    ```
-
-3. **Durante a execução:**
-   - Pressione `q` para interromper o programa de forma segura.
-   - O script exibirá as colunas detectadas no Excel e iniciará o envio das mensagens.
-
-4. **Progresso Salvo:**
-   - O progresso é salvo automaticamente no arquivo `progresso.txt`. 
-   - Caso o script seja interrompido, ele retomará do último contato enviado.
-
----
-
-## **Configurações Importantes**
-- **Limite de Mensagens por Execução:**
-  O limite está configurado para 10 mensagens por execução. Você pode alterar a variável `max_mensagens` para ajustar esse valor:
-  ```python
-  max_mensagens = 10
-  ```
-
-- **Formato do Número de Telefone:**
-  - O script adiciona o código do Brasil `+55` automaticamente se ele não estiver presente.
-
-- **Mensagem Padrão:**
-  Modifique a mensagem no seguinte trecho:
-  ```python
-  mensagem = f"Olá {primeiro_nome}, Mensagem a ser enviada"
-  ```
+2. **Carregue a planilha Excel:**
+   - Clique no botão **"Carregar Excel"** para selecionar o arquivo.
+3. **(Opcional) Carregue uma imagem:**
+   - Clique em **"Carregar Imagem"** para anexar uma imagem ao envio.
+4. **Digite a mensagem desejada:**
+   - Utilize `{nome}` para personalizar a mensagem com o nome do destinatário.
+5. **Defina a quantidade de mensagens a serem enviadas.**
+6. **Clique em "Iniciar" para começar o envio.**
+7. **Para interromper o envio, clique em "Finalizar".**
 
 ---
 
-## **Dicas**
-1. **Teste antes:**
-   - Execute o script com um pequeno número de contatos para verificar se está funcionando corretamente.
-   
-2. **Evite Bloqueios:**
-   - O script utiliza um tempo de espera para evitar bloqueios no WhatsApp. Não reduza os tempos de espera (`time.sleep` e `wait_time`) para evitar ser sinalizado.
+## **Formato da Planilha Excel**
 
-3. **Fechar o WhatsApp Web:**
-   - O script fecha automaticamente a aba do WhatsApp Web após o envio de cada mensagem.
+A planilha deve conter as seguintes colunas:
 
----
+- `Nome` - Nome do contato (utilizado para personalização da mensagem).
+- `Telefone` - Número do contato no formato internacional (**+55** para Brasil).
 
-## **Erros Comuns**
-- **Erro ao abrir o arquivo Excel:**
-  - Verifique o nome do arquivo e se ele está no mesmo diretório do script.
-  - Certifique-se de que o arquivo está no formato `.xlsx`.
+**Exemplo:**
 
-- **WhatsApp Web não abre:**
-  - Certifique-se de que o navegador está configurado corretamente para abrir o WhatsApp Web.
+| Nome  | Telefone       |
+| ----- | -------------- |
+| João  | +0000000000000 |
+| Maria | +0000000000000 |
 
 ---
 
-## **Segurança**
-- O script utiliza `pyautogui`, que controla o mouse e o teclado. Não mova o cursor ou altere as janelas durante a execução.
+## **Avisos e Recomendações**
+
+- O envio de mensagens em massa pode estar sujeito a **bloqueios pelo WhatsApp**. Evite enviar muitas mensagens em curtos espaços de tempo.
+- O script utiliza **pyautogui**, que controla o mouse e o teclado. Evite mover o cursor ou alterar as janelas durante a execução.
+- Antes de enviar mensagens para uma grande lista de contatos, **teste o funcionamento com um pequeno grupo.**
+- O tempo de envio entre mensagens pode ser ajustado no código para evitar detecção como spam.
+
+---
+
+## **Possíveis Erros e Soluções**
+
+| Erro                  | Causa                               | Solução                                     |
+| --------------------- | ----------------------------------- | ------------------------------------------- |
+| `FileNotFoundError`   | Arquivo Excel não encontrado        | Verifique o nome e local do arquivo         |
+| `ModuleNotFoundError` | Biblioteca não instalada            | Execute `pip install -r requirements.txt`   |
+| WhatsApp Web não abre | Não está logado no navegador padrão | Faça login no WhatsApp Web antes de iniciar |
 
 ---
 
 ## **Contribuições**
-Contribuições são bem-vindas! Para reportar problemas ou sugerir melhorias, abra uma issue ou envie um pull request.
+
+Contribuições são bem-vindas! Se encontrar problemas ou tiver sugestões, abra uma **issue** ou envie um **pull request**.
 
 ---
 
 ## **Licença**
-Este projeto está licenciado sob a licença MIT. Sinta-se livre para utilizá-lo e modificá-lo conforme necessário.
+
+Este projeto está licenciado sob a **MIT License**. Você é livre para utilizá-lo e modificá-lo conforme necessidade.
+

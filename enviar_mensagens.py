@@ -58,9 +58,10 @@ def enviar_mensagens():
     global progresso, running, imagem_path
     running = True
     mensagem_personalizada = txt_mensagem.get("1.0", tk.END).strip()
+    quantidade_mensagens = int(entry_quantidade.get())  # Obter a quantidade de mensagens
 
     for index, row in dados.iloc[progresso:].iterrows():
-        if not running:
+        if not running or (index - progresso) >= quantidade_mensagens:  # Verificar limite de mensagens
             break
 
         numero = str(row["telefone"]).strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
@@ -107,6 +108,12 @@ def carregar_imagem():
     if imagem_path:
         lbl_imagem.config(text=f"Imagem: {os.path.basename(imagem_path)}")
 
+# Função para excluir imagem
+def excluir_imagem():
+    global imagem_path
+    imagem_path = None
+    lbl_imagem.config(text="Nenhuma imagem carregada.")
+
 # Controles do sistema
 def iniciar():
     if dados is None:
@@ -121,7 +128,7 @@ def finalizar():
 # Interface gráfica
 root = tk.Tk()
 root.title("Envio Automático")
-root.geometry("600x400")
+root.geometry("600x500")
 
 frame = tk.Frame(root)
 frame.pack(pady=20)
@@ -131,6 +138,9 @@ btn_carregar.pack(side=tk.LEFT, padx=10)
 
 btn_carregar_imagem = tk.Button(frame, text="Carregar Imagem", command=carregar_imagem)
 btn_carregar_imagem.pack(side=tk.LEFT, padx=10)
+
+btn_excluir_imagem = tk.Button(frame, text="Excluir Imagem", command=excluir_imagem)
+btn_excluir_imagem.pack(side=tk.LEFT, padx=10)
 
 btn_iniciar = tk.Button(frame, text="Iniciar", command=iniciar)
 btn_iniciar.pack(side=tk.LEFT, padx=10)
@@ -143,6 +153,13 @@ lbl_mensagem.pack(pady=10)
 
 txt_mensagem = scrolledtext.ScrolledText(root, width=70, height=5)
 txt_mensagem.pack(pady=10)
+
+lbl_quantidade = tk.Label(root, text="Quantidade de mensagens a enviar:")
+lbl_quantidade.pack(pady=10)
+
+entry_quantidade = tk.Entry(root)
+entry_quantidade.pack(pady=10)
+entry_quantidade.insert(0, "10")  # Valor padrão
 
 lbl_imagem = tk.Label(root, text="Nenhuma imagem carregada.")
 lbl_imagem.pack(pady=10)
