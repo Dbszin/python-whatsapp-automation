@@ -58,13 +58,14 @@ def enviar_mensagens():
     global progresso, running, imagem_path
     running = True
     mensagem_personalizada = txt_mensagem.get("1.0", tk.END).strip()
+    
     quantidade_mensagens = int(entry_quantidade.get())  # Obter a quantidade de mensagens
 
     for index, row in dados.iloc[progresso:].iterrows():
         if not running or (index - progresso) >= quantidade_mensagens:  # Verificar limite de mensagens
             break
 
-        numero = str(row["telefone"]).strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        numero = str(int(row["telefone"])).strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
         if not numero.startswith("+55"):
             numero = f"+55{numero}"
 
@@ -76,9 +77,10 @@ def enviar_mensagens():
             print(f"Enviando mensagem para {numero}...")
 
             if imagem_path and os.path.exists(imagem_path):
+
                 kit.sendwhats_image(numero, imagem_path, mensagem, wait_time=20)
             else:
-                kit.sendwhatmsg_instantly(numero, mensagem, wait_time=10)
+                kit.sendwhatmsg_instantly(numero, mensagem, wait_time=15)
 
             enviar_mensagem_automaticamente()
 
