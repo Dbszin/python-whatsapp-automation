@@ -5,6 +5,7 @@ import pyautogui
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
 import os
+import threading
 
 # Configurações globais
 pyautogui.FAILSAFE = True
@@ -59,6 +60,11 @@ def encontrar_coluna(df, palavras_chave):
             return coluna
     return None
 
+# Função para enviar mensagens em uma thread separada
+def iniciar_envio():
+    thread = threading.Thread(target=enviar_mensagens, daemon=True)
+    thread.start()
+
 # Função para enviar mensagens
 def enviar_mensagens():
     global running, ultimo_contato
@@ -86,23 +92,21 @@ def enviar_mensagens():
             print(f"Enviando mensagem para {numero}...")
 
             if imagem_path and os.path.exists(imagem_path):
-                kit.sendwhats_image(numero, imagem_path, mensagem, wait_time=20)  # Aumentado o wait_time
+                kit.sendwhats_image(numero, imagem_path, mensagem, wait_time=20)
             else:
-                kit.sendwhatmsg_instantly(numero, mensagem, wait_time=20)  # Aumentado o wait_time
+                kit.sendwhatmsg_instantly(numero, mensagem, wait_time=20)
 
-            # Salvar o último contato enviado
-            ultimo_contato = {
-                "nome": row["nome"],
-                "telefone": numero,
-                "linha": index + 2  # +2 porque pandas começa do 0 e no Excel começa de 1
-            }
+            # Atualiza a interface para não travar
+            root.update_idletasks()
 
-            # Aguardar o envio da mensagem e fechar a guia
-            time.sleep(10)  # Tempo para garantir que a mensagem foi enviada
-            pyautogui.press('enter')  # Enviar a mensagem
-            time.sleep(10)  # Tempo para garantir que a mensagem foi processada
-            pyautogui.hotkey('ctrl', 'w')  # Fechar a guia
-            time.sleep(2)  # Tempo para garantir que a guia foi fechada
+            time.sleep(10)  # Tempo de envio
+            pyautogui.press('enter')
+            time.sleep(10)
+            pyautogui.hotkey('ctrl', 'w')
+            time.sleep(2)
+
+            # Atualiza o último contato
+            ultimo_contato = {"nome": row["nome"], "telefone": numero, "linha": index + 2}
 
         except Exception as e:
             print(f"Erro ao enviar para {numero}: {e}")
@@ -156,7 +160,7 @@ btn_carregar_imagem.pack(side=tk.LEFT, padx=10)
 btn_excluir_imagem = tk.Button(frame, text="Excluir Imagem", command=excluir_imagem)
 btn_excluir_imagem.pack(side=tk.LEFT, padx=10)
 
-btn_iniciar = tk.Button(frame, text="Iniciar", command=enviar_mensagens)
+btn_iniciar = tk.Button(frame, text="Iniciar", command=iniciar_envio)
 btn_iniciar.pack(side=tk.LEFT, padx=10)
 
 btn_finalizar = tk.Button(frame, text="Finalizar", command=finalizar)
