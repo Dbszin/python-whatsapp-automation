@@ -4,7 +4,6 @@ import time
 import pyautogui
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
-from threading import Thread
 import os
 
 # Configurações globais
@@ -87,9 +86,9 @@ def enviar_mensagens():
             print(f"Enviando mensagem para {numero}...")
 
             if imagem_path and os.path.exists(imagem_path):
-                kit.sendwhats_image(numero, imagem_path, mensagem, wait_time=20)
+                kit.sendwhats_image(numero, imagem_path, mensagem, wait_time=20)  # Aumentado o wait_time
             else:
-                kit.sendwhatmsg_instantly(numero, mensagem, wait_time=15)
+                kit.sendwhatmsg_instantly(numero, mensagem, wait_time=20)  # Aumentado o wait_time
 
             # Salvar o último contato enviado
             ultimo_contato = {
@@ -98,8 +97,12 @@ def enviar_mensagens():
                 "linha": index + 2  # +2 porque pandas começa do 0 e no Excel começa de 1
             }
 
-            # Enviar mensagem e fechar guia de forma não bloqueante
-            Thread(target=enviar_mensagem_automaticamente).start()
+            # Aguardar o envio da mensagem e fechar a guia
+            time.sleep(10)  # Tempo para garantir que a mensagem foi enviada
+            pyautogui.press('enter')  # Enviar a mensagem
+            time.sleep(10)  # Tempo para garantir que a mensagem foi processada
+            pyautogui.hotkey('ctrl', 'w')  # Fechar a guia
+            time.sleep(2)  # Tempo para garantir que a guia foi fechada
 
         except Exception as e:
             print(f"Erro ao enviar para {numero}: {e}")
@@ -107,14 +110,6 @@ def enviar_mensagens():
 
     running = False
     messagebox.showinfo("Finalizado", "Mensagens enviadas.")
-
-# Função para automatizar o envio e fechar guia
-def enviar_mensagem_automaticamente():
-    time.sleep(8)
-    pyautogui.press('enter')
-    time.sleep(6)
-    pyautogui.hotkey('ctrl', 'w')
-    time.sleep(2)
 
 # Função para carregar imagem
 def carregar_imagem():
@@ -161,7 +156,7 @@ btn_carregar_imagem.pack(side=tk.LEFT, padx=10)
 btn_excluir_imagem = tk.Button(frame, text="Excluir Imagem", command=excluir_imagem)
 btn_excluir_imagem.pack(side=tk.LEFT, padx=10)
 
-btn_iniciar = tk.Button(frame, text="Iniciar", command=lambda: Thread(target=enviar_mensagens, daemon=True).start())
+btn_iniciar = tk.Button(frame, text="Iniciar", command=enviar_mensagens)
 btn_iniciar.pack(side=tk.LEFT, padx=10)
 
 btn_finalizar = tk.Button(frame, text="Finalizar", command=finalizar)
