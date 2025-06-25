@@ -1,192 +1,152 @@
-import pandas as pd
-import pywhatkit as kit
-import time
-import pyautogui
 import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext
-import os
+from tkinter import filedialog, messagebox, scrolledtext, ttk
 import threading
+from whatsapp_sender import WhatsAppSender
+import os
 
-# Configurações globais
-pyautogui.FAILSAFE = True
-pyautogui.PAUSE = 1
-dados = None
-running = False
-imagem_path = None
-ultimo_contato = None  # Armazena os dados do último contato enviado
+class WhatsAppGUI:
+    """
+    Classe responsável pela interface gráfica e interação com o usuário.
+    """
+    def __init__(self, root):
+        self.root = root
+        self.sender = WhatsAppSender()
+        self.running = False
+        self._setup_ui()
 
-# Função para carregar o arquivo Excel
-def carregar_arquivo():
-    global dados
-    arquivo = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
-    if not arquivo:
-        return
+    def _setup_ui(self):
+        self.root.title("Envio Automático de WhatsApp")
+        self.root.geometry("650x600")
 
-    try:
-        # Ler o arquivo Excel e garantir que os telefones sejam tratados como string
-        dados = pd.read_excel(arquivo, dtype=str)  
-        dados.columns = dados.columns.str.strip().str.lower()
+        frame = tk.Frame(self.root)
+        frame.pack(pady=20)
 
-        coluna_nome = encontrar_coluna(dados, ['nome', 'name'])
-        coluna_telefone = encontrar_coluna(dados, ['telefone', 'phone', 'celular', 'número'])
+        btn_carregar = tk.Button(frame, text="Carregar Excel", command=self.carregar_arquivo)
+        btn_carregar.pack(side=tk.LEFT, padx=10)
 
-        if coluna_nome is None or coluna_telefone is None:
-            messagebox.showerror("Erro", "O arquivo deve ter colunas 'nome' e 'telefone'.")
+        btn_carregar_imagem = tk.Button(frame, text="Carregar Imagem", command=self.carregar_imagem)
+        btn_carregar_imagem.pack(side=tk.LEFT, padx=10)
+
+        btn_excluir_imagem = tk.Button(frame, text="Excluir Imagem", command=self.excluir_imagem)
+        btn_excluir_imagem.pack(side=tk.LEFT, padx=10)
+
+        btn_iniciar = tk.Button(frame, text="Iniciar", command=self.iniciar_envio)
+        btn_iniciar.pack(side=tk.LEFT, padx=10)
+
+        btn_finalizar = tk.Button(frame, text="Cancelar", command=self.cancelar_envio)
+        btn_finalizar.pack(side=tk.LEFT, padx=10)
+
+        lbl_mensagem = tk.Label(self.root, text="Mensagem (use {nome}, {telefone}, etc):")
+        lbl_mensagem.pack(pady=10)
+
+        self.txt_mensagem = scrolledtext.ScrolledText(self.root, width=70, height=5)
+        self.txt_mensagem.pack(pady=10)
+
+        lbl_quantidade = tk.Label(self.root, text="Quantidade de mensagens a enviar:")
+        lbl_quantidade.pack(pady=5)
+
+        self.entry_quantidade = tk.Entry(self.root)
+        self.entry_quantidade.pack(pady=5)
+        self.entry_quantidade.insert(0, "10")
+
+        lbl_linha_inicial = tk.Label(self.root, text="Número da linha inicial para começar:")
+        lbl_linha_inicial.pack(pady=5)
+
+        self.entry_linha_inicial = tk.Entry(self.root)
+        self.entry_linha_inicial.pack(pady=5)
+        self.entry_linha_inicial.insert(0, "1")
+
+        self.lbl_imagem = tk.Label(self.root, text="Nenhuma imagem carregada.")
+        self.lbl_imagem.pack(pady=10)
+
+        # Barra de progresso
+        self.progress = ttk.Progressbar(self.root, orient="horizontal", length=500, mode="determinate")
+        self.progress.pack(pady=10)
+
+        # Área de status/log visual
+        self.txt_status = scrolledtext.ScrolledText(self.root, width=70, height=8, state='disabled')
+        self.txt_status.pack(pady=10)
+
+    def carregar_arquivo(self):
+        arquivo = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
+        if not arquivo:
             return
+        if self.sender.carregar_arquivo(arquivo):
+            messagebox.showinfo("Sucesso", "Arquivo carregado com sucesso!")
+            self.log_status(f"Arquivo carregado: {arquivo}")
+        else:
+            messagebox.showerror("Erro", "Erro ao abrir o arquivo. Verifique o log para detalhes.")
+            self.log_status("Erro ao carregar arquivo.")
 
-        # Padronizar colunas
-        dados.rename(columns={coluna_nome: 'nome', coluna_telefone: 'telefone'}, inplace=True)
-        dados = dados.dropna(subset=["telefone", "nome"])
+    def carregar_imagem(self):
+        imagem_path = filedialog.askopenfilename(filetypes=[("Imagens", "*.png;*.jpg;*.jpeg")])
+        self.sender.set_imagem(imagem_path)
+        self.lbl_imagem.config(text=f"Imagem: {os.path.basename(imagem_path)}" if imagem_path else "Nenhuma imagem carregada.")
+        self.log_status(f"Imagem carregada: {imagem_path}" if imagem_path else "Imagem removida.")
 
-        # Limpar números de telefone (remover espaços, caracteres não numéricos e formatar corretamente)
-        dados["telefone"] = (
-            dados["telefone"]
-            .astype(str)
-            .str.replace(r"[^\d]", "", regex=True)  # Remove tudo que não for número
-            .str.lstrip("0")  # Remove zeros no início
-        )
+    def excluir_imagem(self):
+        self.sender.set_imagem(None)
+        self.lbl_imagem.config(text="Nenhuma imagem carregada.")
+        self.log_status("Imagem removida.")
 
-        # Adicionar +55 se o número não começar com ele
-        dados["telefone"] = dados["telefone"].apply(lambda x: f"+55{x}" if not x.startswith("+55") else x)
+    def iniciar_envio(self):
+        if self.running:
+            messagebox.showinfo("Aviso", "O envio já está em andamento.")
+            return
+        self.running = True
+        self.progress['value'] = 0
+        self.txt_status.config(state='normal')
+        self.txt_status.delete('1.0', tk.END)
+        self.txt_status.config(state='disabled')
+        thread = threading.Thread(target=self.enviar_mensagens, daemon=True)
+        thread.start()
 
-        messagebox.showinfo("Sucesso", "Arquivo carregado com sucesso!")
-    except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao abrir o arquivo: {e}")
+    def cancelar_envio(self):
+        if self.running:
+            self.running = False
+            self.log_status("Envio cancelado pelo usuário.")
+        else:
+            messagebox.showinfo("Aviso", "Nenhum envio em andamento.")
 
-# Função para encontrar colunas dinamicamente
-def encontrar_coluna(df, palavras_chave):
-    for coluna in df.columns:
-        if any(palavra.lower() in coluna.lower() for palavra in palavras_chave):
-            return coluna
-    return None
-
-# Função para enviar mensagens em uma thread separada
-def iniciar_envio():
-    thread = threading.Thread(target=enviar_mensagens, daemon=True)
-    thread.start()
-
-# Função para enviar mensagens
-def enviar_mensagens():
-    global running, ultimo_contato
-    running = True
-    mensagem_base = txt_mensagem.get("1.0", tk.END).strip()
-
-    try:
-        linha_inicial = int(entry_linha_inicial.get()) - 1
-        quantidade_mensagens = int(entry_quantidade.get())
-    except ValueError:
-        messagebox.showerror("Erro", "Insira números válidos para linha inicial e quantidade.")
-        return
-
-    df_mensagens = dados.iloc[linha_inicial : linha_inicial + quantidade_mensagens]
-
-    for index, row in df_mensagens.iterrows():
-        if not running:
-            break
-
-        primeiro_nome = str(row["nome"]).strip().split()[0]
-        numero = row["telefone"]
-        mensagem = mensagem_base.replace("{nome}", primeiro_nome)
-
+    def enviar_mensagens(self):
+        mensagem_base = self.txt_mensagem.get("1.0", tk.END).strip()
         try:
-            print(f"Enviando mensagem para {numero}...")
-
-            if imagem_path and os.path.exists(imagem_path):
-                kit.sendwhats_image(numero, imagem_path, mensagem, wait_time=20)
+            linha_inicial = int(self.entry_linha_inicial.get()) - 1
+            quantidade_mensagens = int(self.entry_quantidade.get())
+        except ValueError:
+            messagebox.showerror("Erro", "Insira números válidos para linha inicial e quantidade.")
+            self.running = False
+            return
+        total = quantidade_mensagens
+        self.progress['maximum'] = total
+        enviados = 0
+        def update_callback(ultimo_contato):
+            nonlocal enviados
+            enviados += 1
+            self.progress['value'] = enviados
+            self.log_status(f"Enviado para {ultimo_contato['nome']} ({ultimo_contato['telefone']}) - Linha {ultimo_contato['linha']}")
+            self.root.update_idletasks()
+        def stop_flag():
+            return not self.running
+        try:
+            self.sender.enviar_mensagens(mensagem_base, linha_inicial, quantidade_mensagens, update_callback, stop_flag)
+            if self.running:
+                messagebox.showinfo("Finalizado", "Mensagens enviadas.")
+                self.log_status("Envio finalizado com sucesso.")
             else:
-                kit.sendwhatmsg_instantly(numero, mensagem, wait_time=20)
-
-            # Atualiza a interface para não travar
-            root.update_idletasks()
-
-            time.sleep(10)  # Tempo de envio
-            pyautogui.press('enter')
-            time.sleep(10)
-            pyautogui.hotkey('ctrl', 'w')
-            time.sleep(2)
-
-            # Atualiza o último contato
-            ultimo_contato = {"nome": row["nome"], "telefone": numero, "linha": index + 2}
-
+                self.log_status("Envio interrompido.")
         except Exception as e:
-            print(f"Erro ao enviar para {numero}: {e}")
-            continue
+            messagebox.showerror("Erro", f"Erro ao enviar mensagens: {e}")
+            self.log_status(f"Erro: {e}")
+        self.running = False
 
-    running = False
-    messagebox.showinfo("Finalizado", "Mensagens enviadas.")
+    def log_status(self, msg):
+        self.txt_status.config(state='normal')
+        self.txt_status.insert(tk.END, msg + '\n')
+        self.txt_status.see(tk.END)
+        self.txt_status.config(state='disabled')
 
-# Função para carregar imagem
-def carregar_imagem():
-    global imagem_path
-    imagem_path = filedialog.askopenfilename(filetypes=[("Imagens", "*.png;*.jpg;*.jpeg")])
-    lbl_imagem.config(text=f"Imagem: {os.path.basename(imagem_path)}" if imagem_path else "Nenhuma imagem carregada.")
-
-# Função para excluir imagem
-def excluir_imagem():
-    global imagem_path
-    imagem_path = None
-    lbl_imagem.config(text="Nenhuma imagem carregada.")
-
-# Função para exibir o último contato ao finalizar
-def finalizar():
-    global running
-    running = False
-
-    if ultimo_contato:
-        messagebox.showinfo(
-            "Última Mensagem Enviada",
-            f"📌 Último contato enviado:\n"
-            f"👤 Nome: {ultimo_contato['nome']}\n"
-            f"📞 Telefone: {ultimo_contato['telefone']}\n"
-            f"📊 Linha no Excel: {ultimo_contato['linha']}"
-        )
-    else:
-        messagebox.showinfo("Finalizado", "Nenhuma mensagem foi enviada ainda.")
-
-# Interface gráfica
-root = tk.Tk()
-root.title("Envio Automático")
-root.geometry("600x550")
-
-frame = tk.Frame(root)
-frame.pack(pady=20)
-
-btn_carregar = tk.Button(frame, text="Carregar Excel", command=carregar_arquivo)
-btn_carregar.pack(side=tk.LEFT, padx=10)
-
-btn_carregar_imagem = tk.Button(frame, text="Carregar Imagem", command=carregar_imagem)
-btn_carregar_imagem.pack(side=tk.LEFT, padx=10)
-
-btn_excluir_imagem = tk.Button(frame, text="Excluir Imagem", command=excluir_imagem)
-btn_excluir_imagem.pack(side=tk.LEFT, padx=10)
-
-btn_iniciar = tk.Button(frame, text="Iniciar", command=iniciar_envio)
-btn_iniciar.pack(side=tk.LEFT, padx=10)
-
-btn_finalizar = tk.Button(frame, text="Finalizar", command=finalizar)
-btn_finalizar.pack(side=tk.LEFT, padx=10)
-
-lbl_mensagem = tk.Label(root, text="Mensagem (use {nome} para personalizar):")
-lbl_mensagem.pack(pady=10)
-
-txt_mensagem = scrolledtext.ScrolledText(root, width=70, height=5)
-txt_mensagem.pack(pady=10)
-
-lbl_quantidade = tk.Label(root, text="Quantidade de mensagens a enviar:")
-lbl_quantidade.pack(pady=5)
-
-entry_quantidade = tk.Entry(root)
-entry_quantidade.pack(pady=5)
-entry_quantidade.insert(0, "10")
-
-lbl_linha_inicial = tk.Label(root, text="Número da linha inicial para começar:")
-lbl_linha_inicial.pack(pady=5)
-
-entry_linha_inicial = tk.Entry(root)
-entry_linha_inicial.pack(pady=5)
-entry_linha_inicial.insert(0, "1")
-
-lbl_imagem = tk.Label(root, text="Nenhuma imagem carregada.")
-lbl_imagem.pack(pady=10)
-
-root.mainloop()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = WhatsAppGUI(root)
+    root.mainloop()
